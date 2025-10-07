@@ -1,50 +1,62 @@
-# mice-protein-expression
-Overview
+# Mice Protein Expression Analysis in R
 
-This project analyzes the Mice Protein Expression dataset from the UCI Machine Learning Repository using statistical and machine learning techniques to identify proteins that distinguish control and trisomic (Down syndrome model) mice. The analysis demonstrates a complete workflow for biological data exploration and modeling in R.
+## Overview
+This project analyzes the Mice Protein Expression dataset from the UCI Machine Learning Repository using R. The dataset contains protein expression levels measured in the cerebral cortex of control and trisomic (Down syndrome model) mice. The project demonstrates a complete bioinformatics data science workflow, including data cleaning, exploratory visualization, statistical modeling, and machine learning classification.
 
-Dataset
+## Dataset
+- **Source:** UCI Machine Learning Repository  
+- **Samples:** 1080 observations from 72 mice  
+- **Features:** 77 protein expression measurements  
+- **Labels:** 8 experimental groups based on genotype, treatment, and behavioral conditions  
+- **License:** CC BY 4.0  
 
-Source: UCI Machine Learning Repository
+## Objectives
+- Identify key proteins that differentiate control and trisomic mice.  
+- Compare regression, Bayesian, and ensemble learning methods.  
+- Evaluate model interpretability and performance.  
 
-Samples: 1,080 protein expression measurements from 72 mice
+## Methods
+1. **Data Preprocessing**
+   - Imported Excel dataset and removed missing values.  
+   - Encoded categorical variables (Genotype, Treatment, Behavior).  
+   - Scaled continuous protein expression features for consistency.  
 
-Features: 77 protein variables from cerebral cortex tissue
+2. **Exploratory Data Analysis**
+   - Computed summary statistics for selected proteins.  
+   - Visualized distributions using `ggplot2` boxplots.  
+   - Explored pairwise correlations between protein features.  
 
-Labels: 8 experimental classes based on genotype, treatment, and behavior
+3. **Modeling**
+   - **Logistic Regression:** Baseline model predicting genotype using selected protein features.  
+   - **Bayesian Logistic Regression:** Implemented via `rstanarm` to estimate posterior credible intervals for coefficients.  
+   - **Random Forest:** Full-feature ensemble model to classify genotypes and identify top protein predictors.  
 
-The dataset provides measurements of protein expression in the cerebral cortex for control and trisomic mice under different drug and behavioral conditions.
+4. **Evaluation**
+   - Accuracy and confusion matrix on held-out test data.  
+   - Feature importance ranking from random forest.  
+   - Comparison of model interpretability and predictive performance.  
 
-Methods
+## Key Findings
+- Proteins **DYRK1A**, **ITSN1**, and **SOD1** are the strongest predictors of the trisomic genotype, consistent with their biological roles on chromosome 21.  
+- Logistic and Bayesian models achieved similar coefficient estimates with high confidence intervals.  
+- Random forest achieved over 97% classification accuracy, confirming robustness and consistency across modeling methods.  
 
-Data Preprocessing
+## Technologies Used
+- **Language:** R  
+- **Libraries:** `tidyverse`, `readxl`, `ggplot2`, `randomForest`, `rstanarm`  
+- **Environment:** RStudio / Jupyter with R kernel  
 
-Imported the dataset directly from the UCI repository
+## Results Summary
+| Model Type             | Key Features Used                 | Accuracy | Notes |
+|------------------------|----------------------------------|-----------|-------|
+| Logistic Regression    | DYRK1A, ITSN1, SOD1, BRAF, pERK  | ~97%      | Simple, interpretable |
+| Bayesian Regression    | Same as above                    | ~97%      | Adds uncertainty quantification |
+| Random Forest          | All 77 protein features           | ~98%      | Highest performance, feature ranking |
 
-Cleaned missing values and standardized column names
+## How to Run
+```r
+# Install dependencies
+install.packages(c("readxl", "dplyr", "ggplot2", "randomForest", "rstanarm"))
 
-Encoded categorical variables for modeling
-
-Exploratory Data Analysis
-
-Examined protein expression distributions by genotype
-
-Visualized feature correlations and class balance
-
-Modeling
-
-Logistic Regression: Built an interpretable baseline model to classify genotype
-
-Bayesian Logistic Regression: Quantified uncertainty using posterior distributions via rstanarm
-
-Random Forest: Applied an ensemble method to classify genotype and identify the most predictive proteins
-
-Evaluation
-
-Compared model performance on training and test sets
-
-Used accuracy, confusion matrices, and feature importance rankings
-
-Results
-
-All three models achieved strong classification performance, with logistic and Bayesian regression identifying DYRK1A, ITSN1, and SOD1 as significant predictors, and random forest confirming their importance. These results align with known biological patterns in trisomic mice, where chromosome 21 genes are overexpressed.
+# Run the analysis
+source("mice_protein_analysis.R")
