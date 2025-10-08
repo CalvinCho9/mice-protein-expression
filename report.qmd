@@ -1,13 +1,21 @@
 ---
-title: "Protein-Level Signatures of Trisomy in the Mice Protein Expression Dataset"
+title: "Investigation of Forensic Crime Lab Characteristics and their Impact on Competency Testing Results"
 author: "Calvin Cho"
-date: "`r format(Sys.time(), '%Y-%m-%d')`"
-output:
-  pdf_document:
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+format:
+  pdf:
     toc: true
-    number_sections: true
-fontsize: 11pt
-geometry: margin=1in
+    number-sections: true
+    margin-top: 1in
+    margin-bottom: 1in  
+    margin-left: 1in
+    margin-right: 1in
+execute: 
+  warning: false
+  message: false
+  echo: false
+editor: visual
+prefer-html: true
 ---
 
 ```{r setup, include=FALSE}
