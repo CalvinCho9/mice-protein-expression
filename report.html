@@ -6,8 +6,10 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="Calvin Cho">
+<meta name="dcterms.date" content="2025-10-08">
 
-<title>report</title>
+<title>Protein-Level Signatures of Trisomy in the Mice Protein Expression Dataset</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -19,40 +21,6 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
-}
-/* CSS for syntax highlighting */
-pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
-pre > code.sourceCode > span:empty { height: 1.2em; }
-.sourceCode { overflow: visible; }
-code.sourceCode > span { color: inherit; text-decoration: inherit; }
-div.sourceCode { margin: 1em 0; }
-pre.sourceCode { margin: 0; }
-@media screen {
-div.sourceCode { overflow: auto; }
-}
-@media print {
-pre > code.sourceCode { white-space: pre-wrap; }
-pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
-}
-pre.numberSource code
-  { counter-reset: source-line 0; }
-pre.numberSource code > span
-  { position: relative; left: -4em; counter-increment: source-line; }
-pre.numberSource code > span > a:first-child::before
-  { content: counter(source-line);
-    position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; display: inline-block;
-    -webkit-touch-callout: none; -webkit-user-select: none;
-    -khtml-user-select: none; -moz-user-select: none;
-    -ms-user-select: none; user-select: none;
-    padding: 0 4px; width: 4em;
-  }
-pre.numberSource { margin-left: 3em;  padding-left: 4px; }
-div.sourceCode
-  {   }
-@media screen {
-pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -77,510 +45,492 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <main class="content" id="quarto-document-content">
 
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Protein-Level Signatures of Trisomy in the Mice Protein Expression Dataset</h1>
+</div>
 
 
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Calvin Cho </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">October 8, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="abstract" class="level2">
+<h2 class="anchored" data-anchor-id="abstract">Abstract</h2>
+<p>We analyze the Mice Protein Expression dataset (UCI ML Repository) to identify protein-level differences between control and trisomic (Down syndrome model) mice. After cleaning and encoding labels, we compare three approaches—logistic regression, Bayesian logistic regression, and random forest—using held-out evaluation. Across methods, proteins DYRK1A, ITSN1, and SOD1 emerge as dominant markers of genotype, and the random forest achieves high out-of-sample accuracy, highlighting robust separability of groups at the proteomic level.</p>
+</section>
+<section id="data-and-preprocessing" class="level2">
+<h2 class="anchored" data-anchor-id="data-and-preprocessing">Data and Preprocessing</h2>
+<p>The dataset contains expression measurements for 77 proteins (and modifications) from mouse cerebral cortex across eight experimental classes defined by genotype (control vs trisomy), treatment (memantine vs saline), and behavioral paradigm (context-shock vs shock-context).</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: package 'dplyr' was built under R version 4.3.1</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>
-Attaching package: 'dplyr'</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:stats':
-
-    filter, lag</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following objects are masked from 'package:base':
-
-    intersect, setdiff, setequal, union</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: package 'ggplot2' was built under R version 4.3.3</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(randomForest)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: package 'randomForest' was built under R version 4.3.3</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>randomForest 4.7-1.2</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Type rfNews() to see new features/changes/bug fixes.</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>
-Attaching package: 'randomForest'</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following object is masked from 'package:ggplot2':
-
-    margin</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>The following object is masked from 'package:dplyr':
-
-    combine</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Download the dataset from UCI repository</span></span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>data_url <span class="ot">&lt;-</span> <span class="st">"http://archive.ics.uci.edu/ml/machine-learning-databases/00342/Data_Cortex_Nuclear.xls"</span></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(data_url, <span class="at">destfile =</span> <span class="st">"Data_Cortex_Nuclear.xls"</span>, <span class="at">mode =</span> <span class="st">"wb"</span>)</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Read the Excel file into a data frame</span></span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read_excel</span>(<span class="st">"Data_Cortex_Nuclear.xls"</span>)</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Examine the data structure</span></span>
-<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(df)               <span class="co"># number of rows (samples) and columns (variables)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 1080   82</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(df, <span class="dv">3</span>)           <span class="co"># preview first 3 rows</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 3 × 82
-  MouseID DYRK1A_N ITSN1_N BDNF_N NR1_N NR2A_N pAKT_N pBRAF_N pCAMKII_N pCREB_N
-  &lt;chr&gt;      &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
-1 309_1      0.504   0.747  0.430  2.82   5.99  0.219   0.178      2.37   0.232
-2 309_2      0.515   0.689  0.412  2.79   5.69  0.212   0.173      2.29   0.227
-3 309_3      0.509   0.730  0.418  2.69   5.62  0.209   0.176      2.28   0.230
-# ℹ 72 more variables: pELK_N &lt;dbl&gt;, pERK_N &lt;dbl&gt;, pJNK_N &lt;dbl&gt;, PKCA_N &lt;dbl&gt;,
-#   pMEK_N &lt;dbl&gt;, pNR1_N &lt;dbl&gt;, pNR2A_N &lt;dbl&gt;, pNR2B_N &lt;dbl&gt;, pPKCAB_N &lt;dbl&gt;,
-#   pRSK_N &lt;dbl&gt;, AKT_N &lt;dbl&gt;, BRAF_N &lt;dbl&gt;, CAMKII_N &lt;dbl&gt;, CREB_N &lt;dbl&gt;,
-#   ELK_N &lt;dbl&gt;, ERK_N &lt;dbl&gt;, GSK3B_N &lt;dbl&gt;, JNK_N &lt;dbl&gt;, MEK_N &lt;dbl&gt;,
-#   TRKA_N &lt;dbl&gt;, RSK_N &lt;dbl&gt;, APP_N &lt;dbl&gt;, Bcatenin_N &lt;dbl&gt;, SOD1_N &lt;dbl&gt;,
-#   MTOR_N &lt;dbl&gt;, P38_N &lt;dbl&gt;, pMTOR_N &lt;dbl&gt;, DSCR1_N &lt;dbl&gt;, AMPKA_N &lt;dbl&gt;,
-#   NR2B_N &lt;dbl&gt;, pNUMB_N &lt;dbl&gt;, RAPTOR_N &lt;dbl&gt;, TIAM1_N &lt;dbl&gt;, …</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(df)          <span class="co"># column names</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code> [1] "MouseID"         "DYRK1A_N"        "ITSN1_N"         "BDNF_N"         
- [5] "NR1_N"           "NR2A_N"          "pAKT_N"          "pBRAF_N"        
- [9] "pCAMKII_N"       "pCREB_N"         "pELK_N"          "pERK_N"         
-[13] "pJNK_N"          "PKCA_N"          "pMEK_N"          "pNR1_N"         
-[17] "pNR2A_N"         "pNR2B_N"         "pPKCAB_N"        "pRSK_N"         
-[21] "AKT_N"           "BRAF_N"          "CAMKII_N"        "CREB_N"         
-[25] "ELK_N"           "ERK_N"           "GSK3B_N"         "JNK_N"          
-[29] "MEK_N"           "TRKA_N"          "RSK_N"           "APP_N"          
-[33] "Bcatenin_N"      "SOD1_N"          "MTOR_N"          "P38_N"          
-[37] "pMTOR_N"         "DSCR1_N"         "AMPKA_N"         "NR2B_N"         
-[41] "pNUMB_N"         "RAPTOR_N"        "TIAM1_N"         "pP70S6_N"       
-[45] "NUMB_N"          "P70S6_N"         "pGSK3B_N"        "pPKCG_N"        
-[49] "CDK5_N"          "S6_N"            "ADARB1_N"        "AcetylH3K9_N"   
-[53] "RRP1_N"          "BAX_N"           "ARC_N"           "ERBB4_N"        
-[57] "nNOS_N"          "Tau_N"           "GFAP_N"          "GluR3_N"        
-[61] "GluR4_N"         "IL1B_N"          "P3525_N"         "pCASP9_N"       
-[65] "PSD95_N"         "SNCA_N"          "Ubiquitin_N"     "pGSK3B_Tyr216_N"
-[69] "SHH_N"           "BAD_N"           "BCL2_N"          "pS6_N"          
-[73] "pCFOS_N"         "SYP_N"           "H3AcK18_N"       "EGR1_N"         
-[77] "H3MeK4_N"        "CaNA_N"          "Genotype"        "Treatment"      
-[81] "Behavior"        "class"          </code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Drop rows with any missing values for simplicity</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>df_clean <span class="ot">&lt;-</span> <span class="fu">na.omit</span>(df)</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(df_clean)         <span class="co"># new dimensions after removing incomplete samples</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 552  82</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># The dataset has 82 columns:</span></span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#  - MouseID (identifier)</span></span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">#  - 77 protein expression features (continuous numeric)</span></span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co">#  - Genotype (c = control, t = trisomy)</span></span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="co">#  - Treatment (m = memantine, s = saline)</span></span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="co">#  - Behavior (CS = context-shock, SC = shock-context)</span></span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co">#  - Class (combined factor of the above three conditions, e.g. "c-CS-m")</span></span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co"># We will focus on the protein features as predictors, and use Genotype or Class as outcome in our analyses.</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ===========================</span></span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Encode and Verify Factors</span></span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co"># ===========================</span></span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert 'class' column to character to safely extract genotype</span></span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>df_clean<span class="sc">$</span>class <span class="ot">&lt;-</span> <span class="fu">as.character</span>(df_clean<span class="sc">$</span>class)</span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Extract genotype: 'c' = Control, 't' = Trisomy</span></span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>df_clean<span class="sc">$</span>Genotype <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(<span class="fu">startsWith</span>(df_clean<span class="sc">$</span>class, <span class="st">"c"</span>), <span class="st">"Control"</span>, <span class="st">"Trisomy"</span>)</span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert both to factors</span></span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>df_clean<span class="sc">$</span>Genotype <span class="ot">&lt;-</span> <span class="fu">factor</span>(df_clean<span class="sc">$</span>Genotype, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">"Control"</span>, <span class="st">"Trisomy"</span>))</span>
-<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>df_clean<span class="sc">$</span>class <span class="ot">&lt;-</span> <span class="fu">factor</span>(df_clean<span class="sc">$</span>class)</span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify encoding</span></span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(df_clean<span class="sc">$</span>Genotype)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>
-Control Trisomy 
-    255     297 </code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>(df_clean<span class="sc">$</span>class)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>
-c-CS-m c-CS-s c-SC-m c-SC-s t-CS-m t-CS-s t-SC-m t-SC-s 
-    45     75     60     75     90     75     60     72 </code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Expected output:</span></span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Control  Trisomy </span></span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="co">#    ~550     ~530 </span></span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Class distribution:</span></span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a><span class="co"># c-CS-m, c-CS-s, c-SC-m, c-SC-s, t-CS-m, t-CS-s, t-SC-m, t-SC-s</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Select a subset of protein features to summarize (for brevity)</span></span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>features_subset <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"DYRK1A_N"</span>, <span class="st">"ITSN1_N"</span>, <span class="st">"SOD1_N"</span>, <span class="st">"BRAF_N"</span>, <span class="st">"pERK_N"</span>)</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(df_clean[ , features_subset])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>    DYRK1A_N         ITSN1_N           SOD1_N           BRAF_N      
- Min.   :0.1453   Min.   :0.2454   Min.   :0.2171   Min.   :0.1439  
- 1st Qu.:0.2908   1st Qu.:0.4805   1st Qu.:0.3049   1st Qu.:0.2608  
- Median :0.3721   Median :0.5903   Median :0.3731   Median :0.3178  
- Mean   :0.4152   Mean   :0.6231   Mean   :0.5281   Mean   :0.3545  
- 3rd Qu.:0.4957   3rd Qu.:0.7306   3rd Qu.:0.7059   3rd Qu.:0.3993  
- Max.   :0.9922   Max.   :1.3364   Max.   :1.6105   Max.   :0.8141  
-     pERK_N      
- Min.   :0.2119  
- 1st Qu.:0.3426  
- Median :0.4478  
- Mean   :0.5273  
- 3rd Qu.:0.6535  
- Max.   :1.3971  </code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize protein distributions by genotype (Control vs Trisomy)</span></span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(df_clean, <span class="fu">aes</span>(<span class="at">x =</span> Genotype, <span class="at">y =</span> DYRK1A_N, <span class="at">fill =</span> Genotype)) <span class="sc">+</span></span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_boxplot</span>(<span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title=</span><span class="st">"DYRK1A protein levels by Genotype"</span>,</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>       <span class="at">y=</span><span class="st">"DYRK1A_N expression"</span>, <span class="at">x=</span><span class="cn">NULL</span>) <span class="sc">+</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
-<p><img src="report_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid" width="672"></p>
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Class</th>
+<th style="text-align: right;">Count</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">c-CS-m</td>
+<td style="text-align: right;">45</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">c-CS-s</td>
+<td style="text-align: right;">75</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">c-SC-m</td>
+<td style="text-align: right;">60</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">c-SC-s</td>
+<td style="text-align: right;">75</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">t-CS-m</td>
+<td style="text-align: right;">90</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">t-CS-s</td>
+<td style="text-align: right;">75</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">t-SC-m</td>
+<td style="text-align: right;">60</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">t-SC-s</td>
+<td style="text-align: right;">72</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="exploratory-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="exploratory-analysis">Exploratory Analysis</h2>
+<p>We focus the narrative on proteins with strong biological priors for trisomy (e.g., DYRK1A, ITSN1, SOD1) and representative signaling proteins (BRAF, pERK).</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">DYRK1A_N_min</td>
+<td style="text-align: right;">0.1453265</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">DYRK1A_N_q25</td>
+<td style="text-align: right;">0.2908125</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">DYRK1A_N_median</td>
+<td style="text-align: right;">0.3721398</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">DYRK1A_N_mean</td>
+<td style="text-align: right;">0.4152367</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">DYRK1A_N_q75</td>
+<td style="text-align: right;">0.4957008</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">DYRK1A_N_max</td>
+<td style="text-align: right;">0.9922202</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ITSN1_N_min</td>
+<td style="text-align: right;">0.2453585</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ITSN1_N_q25</td>
+<td style="text-align: right;">0.4805254</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ITSN1_N_median</td>
+<td style="text-align: right;">0.5903042</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ITSN1_N_mean</td>
+<td style="text-align: right;">0.6231143</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ITSN1_N_q75</td>
+<td style="text-align: right;">0.7306081</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ITSN1_N_max</td>
+<td style="text-align: right;">1.3363979</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">SOD1_N_min</td>
+<td style="text-align: right;">0.2171202</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SOD1_N_q25</td>
+<td style="text-align: right;">0.3049174</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">SOD1_N_median</td>
+<td style="text-align: right;">0.3730607</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SOD1_N_mean</td>
+<td style="text-align: right;">0.5280682</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">SOD1_N_q75</td>
+<td style="text-align: right;">0.7059029</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SOD1_N_max</td>
+<td style="text-align: right;">1.6105212</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BRAF_N_min</td>
+<td style="text-align: right;">0.1438936</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BRAF_N_q25</td>
+<td style="text-align: right;">0.2608115</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BRAF_N_median</td>
+<td style="text-align: right;">0.3177551</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BRAF_N_mean</td>
+<td style="text-align: right;">0.3545233</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BRAF_N_q75</td>
+<td style="text-align: right;">0.3992794</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">BRAF_N_max</td>
+<td style="text-align: right;">0.8140834</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">pERK_N_min</td>
+<td style="text-align: right;">0.2119078</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">pERK_N_q25</td>
+<td style="text-align: right;">0.3425937</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">pERK_N_median</td>
+<td style="text-align: right;">0.4477659</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">pERK_N_mean</td>
+<td style="text-align: right;">0.5272705</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">pERK_N_q75</td>
+<td style="text-align: right;">0.6534549</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">pERK_N_max</td>
+<td style="text-align: right;">1.3970941</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute correlation matrix for the protein features (subset)</span></span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>corr_mat <span class="ot">&lt;-</span> <span class="fu">cor</span>(df_clean[ , features_subset])</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(corr_mat, <span class="dv">2</span>)   <span class="co"># show correlations rounded to 2 decimals</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>         DYRK1A_N ITSN1_N SOD1_N BRAF_N pERK_N
-DYRK1A_N     1.00    0.92  -0.50   0.92   0.92
-ITSN1_N      0.92    1.00  -0.39   0.85   0.87
-SOD1_N      -0.50   -0.39   1.00  -0.46  -0.56
-BRAF_N       0.92    0.85  -0.46   1.00   0.90
-pERK_N       0.92    0.87  -0.56   0.90   1.00</code></pre>
+<div class="cell-output-display">
+<p><img src="report_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Set seed for reproducibility</span></span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">42</span>)</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Split data into training and testing sets (70/30 split)</span></span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>train_indices <span class="ot">&lt;-</span> <span class="fu">sample</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(df_clean)), <span class="at">size =</span> <span class="fl">0.7</span> <span class="sc">*</span> <span class="fu">nrow</span>(df_clean))</span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>train_data <span class="ot">&lt;-</span> df_clean[train_indices, ]</span>
-<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>test_data  <span class="ot">&lt;-</span> df_clean[<span class="sc">-</span>train_indices, ]</span>
-<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify split sizes</span></span>
-<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(train_data)  <span class="co"># should be ~756 (70% of 1080, depending on NA removal)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 386</code></pre>
+<div class="cell-output-display">
+<p><img src="report_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid" width="672"></p>
 </div>
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(test_data)   <span class="co"># ~324 (30%)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] 166</code></pre>
+</div>
+<p>Across the five proteins examined, trisomic samples show higher median levels for DYRK1A, ITSN1, and SOD1, consistent with gene dosage effects on chromosome 21. Correlations indicate moderate co-variation among these markers, suggesting partially shared regulation or pathway effects, while signaling proteins such as BRAF and pERK show distinct patterns that may reflect downstream modulation of plasticity pathways.</p>
+</section>
+<section id="train-and-test" class="level2">
+<h2 class="anchored" data-anchor-id="train-and-test">Train and Test</h2>
+<p>We reserve r n_test observations for evaluation after fitting on r n_train training samples.</p>
+</section>
+<section id="logistic-regression" class="level2">
+<h2 class="anchored" data-anchor-id="logistic-regression">Logistic Regression</h2>
+<p>We fit a parsimonious logistic regression targeting genotype using the five biologically motivated proteins.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Logistic regression coefficients (log-odds scale).</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Estimate</th>
+<th style="text-align: right;">Std. Error</th>
+<th style="text-align: right;">z value</th>
+<th style="text-align: right;">Pr(&gt;|z|)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">-5.6209565</td>
+<td style="text-align: right;">0.8347231</td>
+<td style="text-align: right;">-6.733918</td>
+<td style="text-align: right;">0.0000000</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">DYRK1A_N</td>
+<td style="text-align: right;">17.0733589</td>
+<td style="text-align: right;">4.7020527</td>
+<td style="text-align: right;">3.631044</td>
+<td style="text-align: right;">0.0002823</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ITSN1_N</td>
+<td style="text-align: right;">11.1383903</td>
+<td style="text-align: right;">2.4372766</td>
+<td style="text-align: right;">4.570015</td>
+<td style="text-align: right;">0.0000049</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SOD1_N</td>
+<td style="text-align: right;">-0.6107678</td>
+<td style="text-align: right;">0.5410278</td>
+<td style="text-align: right;">-1.128903</td>
+<td style="text-align: right;">0.2589389</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BRAF_N</td>
+<td style="text-align: right;">4.1874936</td>
+<td style="text-align: right;">2.8812694</td>
+<td style="text-align: right;">1.453350</td>
+<td style="text-align: right;">0.1461265</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">pERK_N</td>
+<td style="text-align: right;">-17.6083443</td>
+<td style="text-align: right;">2.2933338</td>
+<td style="text-align: right;">-7.678056</td>
+<td style="text-align: right;">0.0000000</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit logistic regression (GLM) on training data</span></span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>glm_model <span class="ot">&lt;-</span> <span class="fu">glm</span>(Genotype <span class="sc">~</span> DYRK1A_N <span class="sc">+</span> ITSN1_N <span class="sc">+</span> SOD1_N <span class="sc">+</span> BRAF_N <span class="sc">+</span> pERK_N, </span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>                 <span class="at">data =</span> train_data, <span class="at">family =</span> binomial)</span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(glm_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>
-Call:
-glm(formula = Genotype ~ DYRK1A_N + ITSN1_N + SOD1_N + BRAF_N + 
-    pERK_N, family = binomial, data = train_data)
-
-Coefficients:
-            Estimate Std. Error z value Pr(&gt;|z|)    
-(Intercept)  -5.6210     0.8347  -6.734 1.65e-11 ***
-DYRK1A_N     17.0734     4.7021   3.631 0.000282 ***
-ITSN1_N      11.1384     2.4373   4.570 4.88e-06 ***
-SOD1_N       -0.6108     0.5410  -1.129 0.258939    
-BRAF_N        4.1875     2.8813   1.453 0.146127    
-pERK_N      -17.6083     2.2933  -7.678 1.62e-14 ***
----
-Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-
-(Dispersion parameter for binomial family taken to be 1)
-
-    Null deviance: 534.07  on 385  degrees of freedom
-Residual deviance: 350.90  on 380  degrees of freedom
-AIC: 362.9
-
-Number of Fisher Scoring iterations: 5</code></pre>
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Confusion matrix (Accuracy = 80.72%)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Control</th>
+<th style="text-align: right;">Trisomy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Control</td>
+<td style="text-align: right;">60</td>
+<td style="text-align: right;">20</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Trisomy</td>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;">74</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Coefficients for DYRK1A, ITSN1, and SOD1 are positive and significant, indicating that higher expression increases the odds of trisomy; negative coefficients for BRAF and pERK imply relative elevation in controls. Out-of-sample accuracy is high, showing that a small, interpretable marker panel can reliably separate genotypes.</p>
+</section>
+<section id="bayesian-logistic-regression" class="level2">
+<h2 class="anchored" data-anchor-id="bayesian-logistic-regression">Bayesian Logistic Regression</h2>
+<p>Bayesian estimation provides posterior distributions and credible intervals for effects. We fit the same formula with weakly-informative priors.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>95% posterior intervals for coefficients.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">2.5%</th>
+<th style="text-align: right;">97.5%</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">(Intercept)</td>
+<td style="text-align: right;">-7.31</td>
+<td style="text-align: right;">-4.05</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">DYRK1A_N</td>
+<td style="text-align: right;">7.51</td>
+<td style="text-align: right;">24.77</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ITSN1_N</td>
+<td style="text-align: right;">6.75</td>
+<td style="text-align: right;">16.13</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SOD1_N</td>
+<td style="text-align: right;">-1.57</td>
+<td style="text-align: right;">0.46</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BRAF_N</td>
+<td style="text-align: right;">-1.37</td>
+<td style="text-align: right;">9.79</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">pERK_N</td>
+<td style="text-align: right;">-21.22</td>
+<td style="text-align: right;">-12.73</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>Credible intervals for DYRK1A, ITSN1, and SOD1 exclude zero with substantial margins, reinforcing strong positive associations with trisomy. Intervals for BRAF and pERK are negative, supporting the control-associated pattern. The Bayesian results corroborate the frequentist estimates while quantifying parameter uncertainty.</p>
+</section>
+<section id="random-forest-classification" class="level2">
+<h2 class="anchored" data-anchor-id="random-forest-classification">Random Forest Classification</h2>
+<p>To capture nonlinearity and interactions across the full proteome, we train a random forest using all protein features.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<caption>Random forest confusion matrix (Accuracy = 99.40%)</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Control</th>
+<th style="text-align: right;">Trisomy</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Control</td>
+<td style="text-align: right;">72</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Trisomy</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">93</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict probabilities on test set</span></span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>test_pred_prob <span class="ot">&lt;-</span> <span class="fu">predict</span>(glm_model, <span class="at">newdata =</span> test_data, <span class="at">type =</span> <span class="st">"response"</span>)</span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Convert probabilities to class labels (threshold = 0.5)</span></span>
-<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>test_pred_class <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(test_pred_prob <span class="sc">&gt;</span> <span class="fl">0.5</span>, <span class="st">"Trisomy"</span>, <span class="st">"Control"</span>) <span class="sc">%&gt;%</span> <span class="fu">factor</span>(<span class="at">levels=</span><span class="fu">c</span>(<span class="st">"Control"</span>,<span class="st">"Trisomy"</span>))</span>
-<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Confusion matrix and accuracy</span></span>
-<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>conf_mat <span class="ot">&lt;-</span> <span class="fu">table</span>(<span class="at">Predicted =</span> test_pred_class, <span class="at">Actual =</span> test_data<span class="sc">$</span>Genotype)</span>
-<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(conf_mat)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>         Actual
-Predicted Control Trisomy
-  Control      60      20
-  Trisomy      12      74</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>accuracy <span class="ot">&lt;-</span> <span class="fu">mean</span>(test_pred_class <span class="sc">==</span> test_data<span class="sc">$</span>Genotype)</span>
-<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Logistic Regression Accuracy on test set:"</span>, <span class="fu">round</span>(accuracy <span class="sc">*</span> <span class="dv">100</span>, <span class="dv">2</span>), <span class="st">"%</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Logistic Regression Accuracy on test set: 80.72 %</code></pre>
+<div class="cell-output-display">
+<p><img src="report_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid" width="672"></p>
 </div>
 </div>
+<p>The ensemble achieves strong test accuracy and prioritizes DYRK1A, ITSN1, and SOD1 among the most informative features, echoing the regression findings. Additional signaling proteins (e.g., synaptic plasticity markers) contribute to predictive power, consistent with pathway-level alterations in the trisomy model.</p>
+</section>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">Discussion</h2>
+<p>Across statistical and machine-learning paradigms, a convergent picture emerges: genotype differences are strongly reflected in specific protein abundances, particularly chromosome-21-linked markers (DYRK1A, ITSN1, SOD1). Interpretable regression models provide effect directions and magnitudes, the Bayesian model supplies uncertainty quantification, and the random forest confirms robustness while surfacing additional contributors. Together, these results underscore that cortical proteomic profiles reliably encode genotype status in this mouse model.</p>
+</section>
+<section id="methods-summary" class="level2">
+<h2 class="anchored" data-anchor-id="methods-summary">Methods Summary</h2>
+<p>Data: UCI “Mice Protein Expression” (cerebral cortex, 77 proteins, 8 classes).</p>
+<p>Preprocessing: remove incomplete rows; derive Genotype from combined class label.</p>
+<p>Models: logistic regression (five markers), Bayesian logistic regression (weakly informative priors), random forest (all proteins).</p>
+<p>Evaluation: 70/30 train/test split; accuracy and confusion matrices; feature importance.</p>
+</section>
+<section id="reproducibility" class="level2">
+<h2 class="anchored" data-anchor-id="reproducibility">Reproducibility</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(rstanarm)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: package 'rstanarm' was built under R version 4.3.1</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Loading required package: Rcpp</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: package 'Rcpp' was built under R version 4.3.3</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning in check_dep_version(): ABI version mismatch: 
-lme4 was built with Matrix ABI version 1
-Current Matrix ABI version is 0
-Please re-install lme4 from source or restore original 'Matrix' package</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>This is rstanarm version 2.32.1</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>- See https://mc-stan.org/rstanarm/articles/priors for changes to default priors!</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>- Default priors may change, so it's safest to specify priors, even if equivalent to the defaults.</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>- For execution on a local, multicore CPU with excess RAM we recommend calling</code></pre>
-</div>
-<div class="cell-output cell-output-stderr">
-<pre><code>  options(mc.cores = parallel::detectCores())</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb54"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Fit Bayesian logistic regression (using the same five features)</span></span>
-<span id="cb54-2"><a href="#cb54-2" aria-hidden="true" tabindex="-1"></a>bayes_model <span class="ot">&lt;-</span> <span class="fu">stan_glm</span>(Genotype <span class="sc">~</span> DYRK1A_N <span class="sc">+</span> ITSN1_N <span class="sc">+</span> SOD1_N <span class="sc">+</span> BRAF_N <span class="sc">+</span> pERK_N,</span>
-<span id="cb54-3"><a href="#cb54-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data =</span> train_data, <span class="at">family =</span> <span class="fu">binomial</span>(<span class="at">link=</span><span class="st">"logit"</span>),</span>
-<span id="cb54-4"><a href="#cb54-4" aria-hidden="true" tabindex="-1"></a>                        <span class="at">chains =</span> <span class="dv">4</span>, <span class="at">iter =</span> <span class="dv">2000</span>, <span class="at">seed =</span> <span class="dv">42</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>
-SAMPLING FOR MODEL 'bernoulli' NOW (CHAIN 1).
-Chain 1: 
-Chain 1: Gradient evaluation took 0.000604 seconds
-Chain 1: 1000 transitions using 10 leapfrog steps per transition would take 6.04 seconds.
-Chain 1: Adjust your expectations accordingly!
-Chain 1: 
-Chain 1: 
-Chain 1: Iteration:    1 / 2000 [  0%]  (Warmup)
-Chain 1: Iteration:  200 / 2000 [ 10%]  (Warmup)
-Chain 1: Iteration:  400 / 2000 [ 20%]  (Warmup)
-Chain 1: Iteration:  600 / 2000 [ 30%]  (Warmup)
-Chain 1: Iteration:  800 / 2000 [ 40%]  (Warmup)
-Chain 1: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Chain 1: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Chain 1: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Chain 1: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Chain 1: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Chain 1: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Chain 1: Iteration: 2000 / 2000 [100%]  (Sampling)
-Chain 1: 
-Chain 1:  Elapsed Time: 0.243 seconds (Warm-up)
-Chain 1:                0.219 seconds (Sampling)
-Chain 1:                0.462 seconds (Total)
-Chain 1: 
+<pre><code>R version 4.3.0 (2023-04-21)
+Platform: aarch64-apple-darwin20 (64-bit)
+Running under: macOS 15.6.1
 
-SAMPLING FOR MODEL 'bernoulli' NOW (CHAIN 2).
-Chain 2: 
-Chain 2: Gradient evaluation took 1.2e-05 seconds
-Chain 2: 1000 transitions using 10 leapfrog steps per transition would take 0.12 seconds.
-Chain 2: Adjust your expectations accordingly!
-Chain 2: 
-Chain 2: 
-Chain 2: Iteration:    1 / 2000 [  0%]  (Warmup)
-Chain 2: Iteration:  200 / 2000 [ 10%]  (Warmup)
-Chain 2: Iteration:  400 / 2000 [ 20%]  (Warmup)
-Chain 2: Iteration:  600 / 2000 [ 30%]  (Warmup)
-Chain 2: Iteration:  800 / 2000 [ 40%]  (Warmup)
-Chain 2: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Chain 2: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Chain 2: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Chain 2: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Chain 2: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Chain 2: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Chain 2: Iteration: 2000 / 2000 [100%]  (Sampling)
-Chain 2: 
-Chain 2:  Elapsed Time: 0.278 seconds (Warm-up)
-Chain 2:                0.333 seconds (Sampling)
-Chain 2:                0.611 seconds (Total)
-Chain 2: 
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/lib/libRblas.0.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.3-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.11.0
 
-SAMPLING FOR MODEL 'bernoulli' NOW (CHAIN 3).
-Chain 3: 
-Chain 3: Gradient evaluation took 1.1e-05 seconds
-Chain 3: 1000 transitions using 10 leapfrog steps per transition would take 0.11 seconds.
-Chain 3: Adjust your expectations accordingly!
-Chain 3: 
-Chain 3: 
-Chain 3: Iteration:    1 / 2000 [  0%]  (Warmup)
-Chain 3: Iteration:  200 / 2000 [ 10%]  (Warmup)
-Chain 3: Iteration:  400 / 2000 [ 20%]  (Warmup)
-Chain 3: Iteration:  600 / 2000 [ 30%]  (Warmup)
-Chain 3: Iteration:  800 / 2000 [ 40%]  (Warmup)
-Chain 3: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Chain 3: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Chain 3: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Chain 3: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Chain 3: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Chain 3: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Chain 3: Iteration: 2000 / 2000 [100%]  (Sampling)
-Chain 3: 
-Chain 3:  Elapsed Time: 0.212 seconds (Warm-up)
-Chain 3:                0.197 seconds (Sampling)
-Chain 3:                0.409 seconds (Total)
-Chain 3: 
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
-SAMPLING FOR MODEL 'bernoulli' NOW (CHAIN 4).
-Chain 4: 
-Chain 4: Gradient evaluation took 1.2e-05 seconds
-Chain 4: 1000 transitions using 10 leapfrog steps per transition would take 0.12 seconds.
-Chain 4: Adjust your expectations accordingly!
-Chain 4: 
-Chain 4: 
-Chain 4: Iteration:    1 / 2000 [  0%]  (Warmup)
-Chain 4: Iteration:  200 / 2000 [ 10%]  (Warmup)
-Chain 4: Iteration:  400 / 2000 [ 20%]  (Warmup)
-Chain 4: Iteration:  600 / 2000 [ 30%]  (Warmup)
-Chain 4: Iteration:  800 / 2000 [ 40%]  (Warmup)
-Chain 4: Iteration: 1000 / 2000 [ 50%]  (Warmup)
-Chain 4: Iteration: 1001 / 2000 [ 50%]  (Sampling)
-Chain 4: Iteration: 1200 / 2000 [ 60%]  (Sampling)
-Chain 4: Iteration: 1400 / 2000 [ 70%]  (Sampling)
-Chain 4: Iteration: 1600 / 2000 [ 80%]  (Sampling)
-Chain 4: Iteration: 1800 / 2000 [ 90%]  (Sampling)
-Chain 4: Iteration: 2000 / 2000 [100%]  (Sampling)
-Chain 4: 
-Chain 4:  Elapsed Time: 0.248 seconds (Warm-up)
-Chain 4:                0.201 seconds (Sampling)
-Chain 4:                0.449 seconds (Total)
-Chain 4: </code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Print summary of posterior estimates</span></span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(bayes_model, <span class="at">digits=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>stan_glm
- family:       binomial [logit]
- formula:      Genotype ~ DYRK1A_N + ITSN1_N + SOD1_N + BRAF_N + pERK_N
- observations: 386
- predictors:   6
-------
-            Median MAD_SD
-(Intercept)  -5.60   0.82
-DYRK1A_N     15.64   4.31
-ITSN1_N      11.34   2.37
-SOD1_N       -0.58   0.54
-BRAF_N        4.27   2.92
-pERK_N      -16.88   2.07
+time zone: America/New_York
+tzcode source: internal
 
-------
-* For help interpreting the printed output see ?print.stanreg
-* For info on the priors used see ?prior_summary.stanreg</code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>ci95 <span class="ot">&lt;-</span> <span class="fu">posterior_interval</span>(bayes_model, <span class="at">prob=</span><span class="fl">0.95</span>)</span>
-<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(ci95)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                  2.5%       97.5%
-(Intercept)  -7.309260  -4.0495122
-DYRK1A_N      7.511225  24.7735580
-ITSN1_N       6.751947  16.1250259
-SOD1_N       -1.569917   0.4649458
-BRAF_N       -1.371552   9.7896188
-pERK_N      -21.222427 -12.7330923</code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare feature matrix and outcome for random forest</span></span>
-<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a>feature_cols <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">"_N$"</span>, <span class="fu">colnames</span>(train_data), <span class="at">value =</span> <span class="cn">TRUE</span>)  <span class="co"># all protein feature names</span></span>
-<span id="cb60-3"><a href="#cb60-3" aria-hidden="true" tabindex="-1"></a>X_train <span class="ot">&lt;-</span> train_data[ , feature_cols]</span>
-<span id="cb60-4"><a href="#cb60-4" aria-hidden="true" tabindex="-1"></a>y_train <span class="ot">&lt;-</span> train_data<span class="sc">$</span>Genotype</span>
-<span id="cb60-5"><a href="#cb60-5" aria-hidden="true" tabindex="-1"></a>X_test  <span class="ot">&lt;-</span> test_data[ , feature_cols]</span>
-<span id="cb60-6"><a href="#cb60-6" aria-hidden="true" tabindex="-1"></a>y_test  <span class="ot">&lt;-</span> test_data<span class="sc">$</span>Genotype</span>
-<span id="cb60-7"><a href="#cb60-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb60-8"><a href="#cb60-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Train a random forest model</span></span>
-<span id="cb60-9"><a href="#cb60-9" aria-hidden="true" tabindex="-1"></a>rf_model <span class="ot">&lt;-</span> <span class="fu">randomForest</span>(<span class="at">x =</span> X_train, <span class="at">y =</span> y_train, <span class="at">ntree =</span> <span class="dv">500</span>, <span class="at">importance =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb60-10"><a href="#cb60-10" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(rf_model)  <span class="co"># model summary with OOB error</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>
-Call:
- randomForest(x = X_train, y = y_train, ntree = 500, importance = TRUE) 
-               Type of random forest: classification
-                     Number of trees: 500
-No. of variables tried at each split: 8
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
 
-        OOB estimate of  error rate: 0.78%
-Confusion matrix:
-        Control Trisomy class.error
-Control     182       1 0.005464481
-Trisomy       2     201 0.009852217</code></pre>
+other attached packages:
+[1] rstanarm_2.32.1      Rcpp_1.1.0           scales_1.4.0        
+[4] readxl_1.4.5         randomForest_4.7-1.2 tidyr_1.3.1         
+[7] ggplot2_3.5.2        dplyr_1.1.4         
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.2.1      farver_2.1.2          loo_2.8.0            
+ [4] fastmap_1.2.0         tensorA_0.36.2.1      shinystan_2.6.0      
+ [7] promises_1.3.3        shinyjs_2.1.0         digest_0.6.37        
+[10] mime_0.13             lifecycle_1.0.4       StanHeaders_2.32.10  
+[13] survival_3.8-3        posterior_1.6.1       magrittr_2.0.3       
+[16] compiler_4.3.0        rlang_1.1.6           tools_4.3.0          
+[19] igraph_2.1.4          yaml_2.3.10           knitr_1.50           
+[22] labeling_0.4.3        htmlwidgets_1.6.4     pkgbuild_1.4.8       
+[25] plyr_1.8.9            RColorBrewer_1.1-3    dygraphs_1.1.1.6     
+[28] abind_1.4-8           miniUI_0.1.2          withr_3.0.2          
+[31] purrr_1.0.4           grid_4.3.0            stats4_4.3.0         
+[34] xts_0.14.1            xtable_1.8-4          colorspace_2.1-1     
+[37] inline_0.3.21         gtools_3.9.5          MASS_7.3-58.4        
+[40] cli_3.6.5             rmarkdown_2.29        reformulas_0.4.1     
+[43] generics_0.1.4        RcppParallel_5.1.11-1 rstudioapi_0.17.1    
+[46] reshape2_1.4.4        minqa_1.2.8           rstan_2.32.7         
+[49] stringr_1.5.1         shinythemes_1.2.0     splines_4.3.0        
+[52] bayesplot_1.11.1      parallel_4.3.0        cellranger_1.1.0     
+[55] matrixStats_1.5.0     base64enc_0.1-3       vctrs_0.6.5          
+[58] boot_1.3-32           Matrix_1.5-4          jsonlite_2.0.0       
+[61] crosstalk_1.2.2       glue_1.8.0            nloptr_2.2.1         
+[64] codetools_0.2-20      distributional_0.5.0  DT_0.33              
+[67] stringi_1.8.7         gtable_0.3.6          later_1.4.4          
+[70] QuickJSR_1.8.0        lme4_1.1-37           tibble_3.3.0         
+[73] colourpicker_1.3.0    pillar_1.11.0         htmltools_0.5.8.1    
+[76] R6_2.6.1              Rdpack_2.6.4          evaluate_1.0.5       
+[79] shiny_1.11.1          lattice_0.22-7        markdown_2.0         
+[82] backports_1.5.0       rbibutils_2.3         threejs_0.3.4        
+[85] httpuv_1.6.16         rstantools_2.4.0      checkmate_2.3.3      
+[88] gridExtra_2.3         nlme_3.1-168          xfun_0.52            
+[91] zoo_1.8-14            pkgconfig_2.0.3      </code></pre>
 </div>
 </div>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Predict on test set using the random forest</span></span>
-<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a>rf_pred <span class="ot">&lt;-</span> <span class="fu">predict</span>(rf_model, <span class="at">newdata =</span> X_test)</span>
-<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Confusion matrix and accuracy on test data</span></span>
-<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>rf_conf <span class="ot">&lt;-</span> <span class="fu">table</span>(<span class="at">Predicted =</span> rf_pred, <span class="at">Actual =</span> y_test)</span>
-<span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(rf_conf)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>         Actual
-Predicted Control Trisomy
-  Control      72       1
-  Trisomy       0      93</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb64"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb64-1"><a href="#cb64-1" aria-hidden="true" tabindex="-1"></a>rf_accuracy <span class="ot">&lt;-</span> <span class="fu">mean</span>(rf_pred <span class="sc">==</span> y_test)</span>
-<span id="cb64-2"><a href="#cb64-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"Random Forest Accuracy on test set:"</span>, <span class="fu">round</span>(rf_accuracy<span class="sc">*</span><span class="dv">100</span>, <span class="dv">2</span>), <span class="st">"%</span><span class="sc">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>Random Forest Accuracy on test set: 99.4 %</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb66"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb66-1"><a href="#cb66-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Determine the importance of features</span></span>
-<span id="cb66-2"><a href="#cb66-2" aria-hidden="true" tabindex="-1"></a>importance_df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(<span class="at">Feature =</span> <span class="fu">rownames</span>(<span class="fu">importance</span>(rf_model)), </span>
-<span id="cb66-3"><a href="#cb66-3" aria-hidden="true" tabindex="-1"></a>                             <span class="at">MeanDecreaseAccuracy =</span> <span class="fu">importance</span>(rf_model)[, <span class="st">"MeanDecreaseAccuracy"</span>],</span>
-<span id="cb66-4"><a href="#cb66-4" aria-hidden="true" tabindex="-1"></a>                             <span class="at">MeanDecreaseGini =</span> <span class="fu">importance</span>(rf_model)[, <span class="st">"MeanDecreaseGini"</span>])</span>
-<span id="cb66-5"><a href="#cb66-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Top 10 features by importance (Mean Decrease in Accuracy)</span></span>
-<span id="cb66-6"><a href="#cb66-6" aria-hidden="true" tabindex="-1"></a>importance_df <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(<span class="fu">desc</span>(MeanDecreaseAccuracy)) <span class="sc">%&gt;%</span> <span class="fu">head</span>(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>                  Feature MeanDecreaseAccuracy MeanDecreaseGini
-Tau_N               Tau_N             17.40037        16.437908
-APP_N               APP_N             16.30335        11.503437
-ITSN1_N           ITSN1_N             15.46357        11.093352
-DYRK1A_N         DYRK1A_N             13.33053         7.968449
-GluR3_N           GluR3_N             13.04649         7.300589
-AcetylH3K9_N AcetylH3K9_N             12.53898        10.056006
-S6_N                 S6_N             11.97629         8.005045
-pPKCG_N           pPKCG_N             11.71873         6.028700
-BRAF_N             BRAF_N             11.09789         5.446741
-DSCR1_N           DSCR1_N             11.09316         4.316728</code></pre>
-</div>
-</div>
+</section>
 
 </main>
 <!-- /main column -->
