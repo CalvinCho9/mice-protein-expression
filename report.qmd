@@ -1,0 +1,174 @@
+
+
+
+```{r}
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(randomForest)
+
+# Download the dataset from UCI repository
+data_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00342/Data_Cortex_Nuclear.xls"
+download.file(data_url, destfile = "Data_Cortex_Nuclear.xls", mode = "wb")
+
+# Read the Excel file into a data frame
+df <- read_excel("Data_Cortex_Nuclear.xls")
+
+# Examine the data structure
+dim(df)               # number of rows (samples) and columns (variables)
+head(df, 3)           # preview first 3 rows
+colnames(df)          # column names
+
+# Drop rows with any missing values for simplicity
+df_clean <- na.omit(df)
+dim(df_clean)         # new dimensions after removing incomplete samples
+
+# The dataset has 82 columns:
+#  - MouseID (identifier)
+#  - 77 protein expression features (continuous numeric)
+#  - Genotype (c = control, t = trisomy)
+#  - Treatment (m = memantine, s = saline)
+#  - Behavior (CS = context-shock, SC = shock-context)
+#  - Class (combined factor of the above three conditions, e.g. "c-CS-m")
+#
+# We will focus on the protein features as predictors, and use Genotype or Class as outcome in our analyses.
+
+```
+
+```{r}
+# ===========================
+# Encode and Verify Factors
+# ===========================
+
+# Convert 'class' column to character to safely extract genotype
+df_clean$class <- as.character(df_clean$class)
+
+# Extract genotype: 'c' = Control, 't' = Trisomy
+df_clean$Genotype <- ifelse(startsWith(df_clean$class, "c"), "Control", "Trisomy")
+
+# Convert both to factors
+df_clean$Genotype <- factor(df_clean$Genotype, levels = c("Control", "Trisomy"))
+df_clean$class <- factor(df_clean$class)
+
+# Verify encoding
+table(df_clean$Genotype)
+table(df_clean$class)
+
+# Expected output:
+# Control  Trisomy 
+#    ~550     ~530 
+#
+# Class distribution:
+# c-CS-m, c-CS-s, c-SC-m, c-SC-s, t-CS-m, t-CS-s, t-SC-m, t-SC-s
+
+```
+```{r}
+# Select a subset of protein features to summarize (for brevity)
+features_subset <- c("DYRK1A_N", "ITSN1_N", "SOD1_N", "BRAF_N", "pERK_N")
+summary(df_clean[ , features_subset])
+
+```
+
+```{r}
+# Visualize protein distributions by genotype (Control vs Trisomy)
+ggplot(df_clean, aes(x = Genotype, y = DYRK1A_N, fill = Genotype)) +
+  geom_boxplot(alpha = 0.7) +
+  labs(title="DYRK1A protein levels by Genotype",
+       y="DYRK1A_N expression", x=NULL) +
+  theme_minimal()
+
+```
+
+
+```{r}
+# Compute correlation matrix for the protein features (subset)
+corr_mat <- cor(df_clean[ , features_subset])
+round(corr_mat, 2)   # show correlations rounded to 2 decimals
+
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+# Split data into training and testing sets (70/30 split)
+train_indices <- sample(seq_len(nrow(df_clean)), size = 0.7 * nrow(df_clean))
+train_data <- df_clean[train_indices, ]
+test_data  <- df_clean[-train_indices, ]
+
+# Verify split sizes
+nrow(train_data)  # should be ~756 (70% of 1080, depending on NA removal)
+nrow(test_data)   # ~324 (30%)
+
+```
+
+```{r}
+# Fit logistic regression (GLM) on training data
+glm_model <- glm(Genotype ~ DYRK1A_N + ITSN1_N + SOD1_N + BRAF_N + pERK_N, 
+                 data = train_data, family = binomial)
+summary(glm_model)
+
+```
+
+```{r}
+# Predict probabilities on test set
+test_pred_prob <- predict(glm_model, newdata = test_data, type = "response")
+# Convert probabilities to class labels (threshold = 0.5)
+test_pred_class <- ifelse(test_pred_prob > 0.5, "Trisomy", "Control") %>% factor(levels=c("Control","Trisomy"))
+
+# Confusion matrix and accuracy
+conf_mat <- table(Predicted = test_pred_class, Actual = test_data$Genotype)
+print(conf_mat)
+accuracy <- mean(test_pred_class == test_data$Genotype)
+cat("Logistic Regression Accuracy on test set:", round(accuracy * 100, 2), "%\n")
+
+```
+
+```{r}
+library(rstanarm)
+
+# Fit Bayesian logistic regression (using the same five features)
+bayes_model <- stan_glm(Genotype ~ DYRK1A_N + ITSN1_N + SOD1_N + BRAF_N + pERK_N,
+                        data = train_data, family = binomial(link="logit"),
+                        chains = 4, iter = 2000, seed = 42)
+# Print summary of posterior estimates
+print(bayes_model, digits=2)
+
+```
+
+```{r}
+ci95 <- posterior_interval(bayes_model, prob=0.95)
+print(ci95)
+
+```
+
+```{r}
+# Prepare feature matrix and outcome for random forest
+feature_cols <- grep("_N$", colnames(train_data), value = TRUE)  # all protein feature names
+X_train <- train_data[ , feature_cols]
+y_train <- train_data$Genotype
+X_test  <- test_data[ , feature_cols]
+y_test  <- test_data$Genotype
+
+# Train a random forest model
+rf_model <- randomForest(x = X_train, y = y_train, ntree = 500, importance = TRUE)
+print(rf_model)  # model summary with OOB error
+
+```
+
+```{r}
+# Predict on test set using the random forest
+rf_pred <- predict(rf_model, newdata = X_test)
+# Confusion matrix and accuracy on test data
+rf_conf <- table(Predicted = rf_pred, Actual = y_test)
+print(rf_conf)
+rf_accuracy <- mean(rf_pred == y_test)
+cat("Random Forest Accuracy on test set:", round(rf_accuracy*100, 2), "%\n")
+
+# Determine the importance of features
+importance_df <- data.frame(Feature = rownames(importance(rf_model)), 
+                             MeanDecreaseAccuracy = importance(rf_model)[, "MeanDecreaseAccuracy"],
+                             MeanDecreaseGini = importance(rf_model)[, "MeanDecreaseGini"])
+# Top 10 features by importance (Mean Decrease in Accuracy)
+importance_df %>% arrange(desc(MeanDecreaseAccuracy)) %>% head(10)
+```
+
