@@ -1,5 +1,5 @@
 ---
-title: "Investigation of Forensic Crime Lab Characteristics and their Impact on Competency Testing Results"
+title: "Protein-Level Signatures of Trisomy in the Mice Cortex: A Statistical and Machine Learning Analysis"
 author: "Calvin Cho"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 format:
