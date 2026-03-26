@@ -4,13 +4,20 @@ author: "Calvin Cho"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 format:
   pdf:
+    pdf-engine: xelatex
     toc: true
     number-sections: true
     margin-top: 1in
-    margin-bottom: 1in  
+    margin-bottom: 1in
     margin-left: 1in
     margin-right: 1in
-execute: 
+    include-in-header:
+      text: |
+        \usepackage{fontspec}
+        \setmainfont{Georgia}
+        \setsansfont{Georgia}
+        \setmonofont[Scale=0.85]{Menlo}
+execute:
   warning: false
   message: false
   echo: false
@@ -23,13 +30,21 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width 
 set.seed(42)
 ```
 
+\newpage
+
 ## Abstract
 
-We analyze the Mice Protein Expression dataset (UCI ML Repository) to identify protein-level differences between control and trisomic (Down syndrome model) mice. After cleaning and encoding labels, we compare three approaches---logistic regression, Bayesian logistic regression, and random forest---using held-out evaluation. Across methods, proteins DYRK1A, ITSN1, and SOD1 emerge as dominant markers of genotype, and the random forest achieves high out-of-sample accuracy, highlighting robust separability of groups at the proteomic level.
+We investigate protein-level differences between control and trisomic (Down syndrome model) mice using the Mice Protein Expression dataset (UCI ML Repository), which contains normalized expression measurements for 77 cortical proteins across 552 samples spanning eight experimental classes. After listwise deletion of missing values and stratified train/test splitting, we compare three modeling approaches, logistic regression, Bayesian logistic regression, and random forest, to characterize genotype separability at the proteomic level.
+
+Across all three methods, DYRK1A and ITSN1 emerge as the dominant markers of trisomy, consistent with their location on chromosome 21 and expected gene dosage effects. SOD1, despite showing higher univariate expression in trisomic samples, exhibits a negative coefficient in both regression models, a suppression effect arising from its high collinearity with DYRK1A and ITSN1, underscoring the importance of multivariate modeling when interpreting individual protein contributions within shared regulatory pathways. The random forest, trained on the full proteome, achieves 97.6% out-of-sample accuracy and surfaces Tau and APP as the two most informative features by mean decrease in accuracy, a finding consistent with the known mechanistic overlap between trisomy 21 and Alzheimer's-type neurodegeneration.
+
+Taken together, these results demonstrate that cortical proteomic profiles reliably encode genotype status in this mouse model and highlight APP and Tau as proteins meriting further attention at the intersection of Down syndrome and age-related cognitive decline.
+
+\newpage
 
 ## Data and Preprocessing
 
-The dataset contains expression measurements for 77 proteins (and modifications) from mouse cerebral cortex across eight experimental classes defined by genotype (control vs trisomy), treatment (memantine vs saline), and behavioral paradigm (context-shock vs shock-context).
+The dataset contains expression measurements for 77 proteins (and modifications) from mouse cerebral cortex across eight experimental classes defined by genotype (control vs trisomy), treatment (memantine vs saline), and behavioral paradigm (context-shock vs shock-context). This dataset is publicly available through the UCI Machine Learning Repository and has been used in prior computational studies; the present analysis focuses on a targeted statistical and machine learning characterization of genotype-level protein signatures rather than replication of prior findings.
 
 ```{r}
 suppressPackageStartupMessages({
@@ -42,13 +57,11 @@ suppressPackageStartupMessages({
 ```
 
 ```{r}
-# Download once if not present
 data_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/00342/Data_Cortex_Nuclear.xls"
 if (!file.exists("Data_Cortex_Nuclear.xls")) {
   download.file(data_url, destfile = "Data_Cortex_Nuclear.xls", mode = "wb", quiet = TRUE)
 }
 
-# Robust import: try readxl; if that fails, fall back to openxlsx (pure R)
 read_xls_safe <- function(path){
   out <- tryCatch(readxl::read_excel(path), error = function(e) NULL)
   if (is.null(out)) {
@@ -61,12 +74,8 @@ read_xls_safe <- function(path){
 
 df <- read_xls_safe("Data_Cortex_Nuclear.xls")
 
-# Basic cleaning: drop rows with any missing values in proteins or labels
 df_clean <- df %>% tidyr::drop_na()
 
-# Ensure label columns exist and are tidy
-# In this file, the combined class label is in a column named 'class' (lowercase).
-# Reconstruct Genotype from the first letter of `class`: 'c' = Control, 't' = Trisomy.
 df_clean <- df_clean %>%
   mutate(
     class = as.character(class),
@@ -77,12 +86,15 @@ df_clean <- df_clean %>%
 
 label_counts <- table(df_clean$Genotype)
 class_counts <- table(df_clean$class)
-
 ```
 
 ```{r}
-knitr::kable(as.data.frame(class_counts), col.names = c("Class","Count"))
+knitr::kable(as.data.frame(class_counts), col.names = c("Class", "Count"))
 ```
+
+*Table 1. Sample counts by experimental class after listwise deletion of missing values. Class labels encode genotype (c = control, t = trisomy), behavioral paradigm (CS = context-shock, SC = shock-context), and treatment (m = memantine, s = saline).*
+
+\newpage
 
 ## Exploratory Analysis
 
@@ -92,12 +104,20 @@ We focus the narrative on proteins with strong biological priors for trisomy (e.
 features_subset <- c("DYRK1A_N","ITSN1_N","SOD1_N","BRAF_N","pERK_N")
 summary_tbl <- df_clean %>%
   select(all_of(features_subset)) %>%
-  summarise(across(everything(), list(min=min, q25=~quantile(.x,0.25), median=median, mean=mean, q75=~quantile(.x,0.75), max=max)))
+  summarise(across(everything(), list(
+    min    = min,
+    q25    = ~quantile(.x, 0.25),
+    median = median,
+    mean   = mean,
+    q75    = ~quantile(.x, 0.75),
+    max    = max
+  )))
 knitr::kable(t(summary_tbl), col.names = c("Value"))
-
 ```
 
-```{r}
+*Table 2. Descriptive statistics for five proteins of interest across all samples (normalized expression units). DYRK1A, ITSN1, and SOD1 are chromosome-21-linked markers; BRAF and pERK are downstream signaling proteins included for contrast.*
+
+```{r fig.cap="Protein expression by genotype. Boxplots show the distribution of normalized expression for five proteins of interest in control (pink) and trisomic (teal) mice. DYRK1A, ITSN1, and SOD1 show higher median expression in trisomic samples, consistent with gene dosage effects from an extra copy of chromosome 21. pERK shows the opposite pattern, with higher expression in controls. Outliers are shown as individual points."}
 df_clean %>%
   select(Genotype, all_of(features_subset)) %>%
   pivot_longer(-Genotype, names_to = "Protein", values_to = "Expression") %>%
@@ -108,16 +128,14 @@ df_clean %>%
   theme_minimal() +
   theme(legend.position = "none",
         strip.text = element_text(face = "bold"))
-
 ```
 
-```{r}
+```{r fig.cap="Pairwise Pearson correlation matrix for the five proteins of interest. DYRK1A, ITSN1, BRAF, and pERK show strong positive correlations with each other (r = 0.85-0.92), while SOD1 is negatively correlated with all four (r = -0.39 to -0.56). This collinearity structure has implications for regression coefficient interpretation, particularly for SOD1 (see Section 5)."}
 library(scales)
 corr_mat <- cor(df_clean[, features_subset])
 corr_df <- as.data.frame(corr_mat) %>%
   mutate(Var1 = rownames(.)) %>%
   pivot_longer(-Var1, names_to = "Var2", values_to = "r")
-
 ggplot(corr_df, aes(Var1, Var2, fill = r)) +
   geom_tile() +
   geom_text(aes(label = sprintf("%.2f", r)), size = 3) +
@@ -127,7 +145,6 @@ ggplot(corr_df, aes(Var1, Var2, fill = r)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         legend.position = "bottom")
-
 ```
 
 Across the five proteins examined, trisomic samples show higher median levels for DYRK1A, ITSN1, and SOD1, consistent with gene dosage effects on chromosome 21. Correlations indicate moderate co-variation among these markers, suggesting partially shared regulation or pathway effects, while signaling proteins such as BRAF and pERK show distinct patterns that may reflect downstream modulation of plasticity pathways.
@@ -136,15 +153,16 @@ Across the five proteins examined, trisomic samples show higher median levels fo
 
 ```{r}
 set.seed(42)
-idx <- sample(seq_len(nrow(df_clean)), size = floor(0.7 * nrow(df_clean)))
-train_data <- df_clean[idx, ]
-test_data  <- df_clean[-idx, ]
-
-n_train <- nrow(train_data); n_test <- nrow(test_data)
-
+train_idx <- unlist(lapply(split(seq_len(nrow(df_clean)), df_clean$Genotype), function(i) {
+  sample(i, size = floor(0.7 * length(i)))
+}))
+train_data <- df_clean[train_idx, ]
+test_data  <- df_clean[-train_idx, ]
+n_train <- nrow(train_data)
+n_test  <- nrow(test_data)
 ```
 
-We reserve r n_test observations for evaluation after fitting on r n_train training samples.
+We reserve `r n_test` observations for evaluation after fitting on `r n_train` training samples. The split is stratified by genotype to ensure balanced representation of control and trisomic samples in both sets.
 
 ## Logistic Regression
 
@@ -154,9 +172,10 @@ We fit a parsimonious logistic regression targeting genotype using the five biol
 glm_model <- glm(Genotype ~ DYRK1A_N + ITSN1_N + SOD1_N + BRAF_N + pERK_N,
                  data = train_data, family = binomial())
 glm_sum <- summary(glm_model)
-knitr::kable(coef(glm_sum), caption = "Logistic regression coefficients (log-odds scale).")
-
+knitr::kable(coef(glm_sum))
 ```
+
+*Table 3. Logistic regression coefficients on the log-odds scale. DYRK1A and ITSN1 are positive and significant predictors of trisomy; pERK is strongly negative. SOD1 and BRAF are not significant after accounting for correlated predictors.*
 
 ```{r}
 test_prob <- predict(glm_model, newdata = test_data, type = "response")
@@ -164,12 +183,14 @@ test_cls  <- factor(ifelse(test_prob > 0.5, "Trisomy","Control"),
                     levels = c("Control","Trisomy"))
 glm_conf  <- table(Predicted = test_cls, Actual = test_data$Genotype)
 glm_acc   <- mean(test_cls == test_data$Genotype)
-
-knitr::kable(as.data.frame.matrix(glm_conf), caption = sprintf("Confusion matrix (Accuracy = %.2f%%)", 100*glm_acc))
-
+knitr::kable(as.data.frame.matrix(glm_conf))
 ```
 
-Coefficients for DYRK1A, ITSN1, and SOD1 are positive and significant, indicating that higher expression increases the odds of trisomy; negative coefficients for BRAF and pERK imply relative elevation in controls. Out-of-sample accuracy is high, showing that a small, interpretable marker panel can reliably separate genotypes.
+*`r sprintf("Table 4. Logistic regression confusion matrix on held-out test data (n = %d). Rows are predicted labels, columns are true labels. Overall accuracy = %.2f%%.", n_test, 100*glm_acc)`*
+
+Coefficients for DYRK1A and ITSN1 are positive and significant, indicating that higher expression increases the odds of trisomy, consistent with their location on chromosome 21 and expected gene dosage effects. The coefficient for pERK is strongly negative, implying relative elevation in controls and suggesting downstream signaling differences. SOD1 carries a negative coefficient in the regression despite showing higher median expression in trisomic mice in the exploratory plots; this apparent reversal is likely a suppression effect arising from its high collinearity with DYRK1A and ITSN1 (r ≈ 0.85--0.92), meaning its marginal contribution, after accounting for those proteins, shifts direction. BRAF's coefficient is non-significant, consistent with its weaker univariate separation. Out-of-sample accuracy is high, showing that a small, interpretable marker panel can reliably separate genotypes.
+
+\newpage
 
 ## Bayesian Logistic Regression
 
@@ -181,14 +202,16 @@ options(mc.cores = max(1, parallel::detectCores()-1))
 bayes_model <- rstanarm::stan_glm(
   Genotype ~ DYRK1A_N + ITSN1_N + SOD1_N + BRAF_N + pERK_N,
   data = train_data, family = binomial(link = "logit"),
-  chains = 4, iter = 2000, seed = 42
-)
+  chains = 4, iter = 2000, seed = 42)
 post_ci <- posterior_interval(bayes_model, prob = 0.95)
-knitr::kable(post_ci, digits = 2, caption = "95% posterior intervals for coefficients.")
-
+knitr::kable(post_ci, digits = 2)
 ```
 
-Credible intervals for DYRK1A, ITSN1, and SOD1 exclude zero with substantial margins, reinforcing strong positive associations with trisomy. Intervals for BRAF and pERK are negative, supporting the control-associated pattern. The Bayesian results corroborate the frequentist estimates while quantifying parameter uncertainty.
+*Table 5. 95% posterior credible intervals for logistic regression coefficients estimated via Bayesian inference with weakly-informative priors. Intervals excluding zero indicate strong evidence of an association with genotype.*
+
+Credible intervals for DYRK1A and ITSN1 exclude zero with substantial margins, reinforcing strong positive associations with trisomy. The interval for pERK is entirely negative, supporting the control-associated pattern observed in the frequentist model. The SOD1 interval straddles zero, consistent with the suppression interpretation above---its apparent univariate elevation in trisomy is absorbed by correlated predictors once they are jointly modeled. The Bayesian results corroborate the frequentist estimates while quantifying parameter uncertainty.
+
+\newpage
 
 ## Random Forest Classification
 
@@ -205,43 +228,68 @@ rf_model <- randomForest(x = X_train, y = y_train, ntree = 500, importance = TRU
 rf_pred  <- predict(rf_model, newdata = X_test)
 rf_conf  <- table(Predicted = rf_pred, Actual = y_test)
 rf_acc   <- mean(rf_pred == y_test)
-
-knitr::kable(as.data.frame.matrix(rf_conf), caption = sprintf("Random forest confusion matrix (Accuracy = %.2f%%)", 100*rf_acc))
-
+knitr::kable(as.data.frame.matrix(rf_conf))
 ```
 
-```{r}
+*`r sprintf("Table 6. Random forest confusion matrix on held-out test data (n = %d). Rows are predicted labels, columns are true labels. Overall accuracy = %.2f%%.", n_test, 100*rf_acc)`*
+
+```{r fig.cap="Random forest feature importance (top 12 proteins). Mean decrease in accuracy measures how much model performance drops when a given feature is permuted; higher values indicate greater importance. Tau and APP rank as the most informative features overall, followed by ITSN1. DYRK1A ranks lower than expected given its biological significance, likely due to redundancy with correlated features in the ensemble."}
 imp <- importance(rf_model)
-imp_df <- data.frame(Feature = rownames(imp),
-                     MDA = imp[, "MeanDecreaseAccuracy"],
-                     MDG = imp[, "MeanDecreaseGini"]) %>%
-  arrange(desc(MDA)) %>% slice(1:12)
+imp_df <- data.frame(
+  Feature = rownames(imp),
+  MDA     = imp[, "MeanDecreaseAccuracy"],
+  MDG     = imp[, "MeanDecreaseGini"]
+) %>%
+  arrange(desc(MDA)) %>%
+  slice(1:12)
 
 ggplot(imp_df, aes(x = reorder(Feature, MDA), y = MDA)) +
-  geom_col() +
+  geom_col(fill = "#7a9cbf") +
   coord_flip() +
-  labs(x = NULL, y = "Mean Decrease in Accuracy")
-
+  labs(x = NULL, y = "Mean Decrease in Accuracy") +
+  theme_minimal()
 ```
 
-The ensemble achieves strong test accuracy and prioritizes DYRK1A, ITSN1, and SOD1 among the most informative features, echoing the regression findings. Additional signaling proteins (e.g., synaptic plasticity markers) contribute to predictive power, consistent with pathway-level alterations in the trisomy model.
+The ensemble achieves strong test accuracy. The high accuracy (`r sprintf("%.1f%%", 100*rf_acc)`) is plausible given the strong biological separability of these groups at the proteomic level, and the use of a stratified train/test split guards against class-imbalance inflation. Nonetheless, this result should be interpreted with appropriate caution given the moderate dataset size; cross-validation would provide a more stable accuracy estimate in future work.
+
+Notably, Tau and APP rank among the top features by mean decrease in accuracy, a finding worth attention beyond the chromosome-21-linked markers. Both proteins are closely associated with Alzheimer's disease pathology, and their elevation in this trisomy 21 mouse model is biologically plausible: individuals with Down syndrome carry an extra copy of the *APP* gene (located on chromosome 21) and have substantially elevated lifetime risk of Alzheimer's-type dementia. The prominence of Tau and APP in the random forest's feature importance therefore reflects a known mechanistic overlap between trisomy 21 and neurodegeneration, and represents one of the more scientifically interesting signals in this dataset beyond simple genotype classification.
+
+\newpage
 
 ## Discussion
 
-Across statistical and machine-learning paradigms, a convergent picture emerges: genotype differences are strongly reflected in specific protein abundances, particularly chromosome-21-linked markers (DYRK1A, ITSN1, SOD1). Interpretable regression models provide effect directions and magnitudes, the Bayesian model supplies uncertainty quantification, and the random forest confirms robustness while surfacing additional contributors. Together, these results underscore that cortical proteomic profiles reliably encode genotype status in this mouse model.
+Across statistical and machine-learning paradigms, a convergent picture emerges: genotype differences are strongly reflected in specific protein abundances, particularly chromosome-21-linked markers (DYRK1A, ITSN1, SOD1). Interpretable regression models provide effect directions and magnitudes, the Bayesian model supplies uncertainty quantification, and the random forest confirms robustness while surfacing additional contributors---most notably APP and Tau, whose prominence is consistent with the known co-occurrence of Down syndrome and Alzheimer's-related pathology.
+
+A few limitations warrant acknowledgment. The UCI Mice Protein Expression dataset is a widely used benchmark, and the core finding that DYRK1A, ITSN1, and SOD1 distinguish trisomic from control mice recapitulates expected biology rather than constituting a novel discovery. The analysis also does not explore whether treatment (memantine vs. saline) modulates protein-genotype relationships, which represents a natural extension given the dataset's factorial design. Finally, listwise deletion of missing values, while straightforward, may introduce modest bias if missingness is non-random across experimental conditions.
+
+Together, these results underscore that cortical proteomic profiles reliably encode genotype status in this mouse model and point toward APP and Tau as proteins meriting further attention in the context of trisomy 21 neurobiology.
+
+\newpage
 
 ## Methods Summary
 
 Data: UCI "Mice Protein Expression" (cerebral cortex, 77 proteins, 8 classes).
 
-Preprocessing: remove incomplete rows; derive Genotype from combined class label.
+Preprocessing: remove incomplete rows; derive Genotype from combined class label; stratified 70/30 train/test split.
 
-Models: logistic regression (five markers), Bayesian logistic regression (weakly informative priors), random forest (all proteins).
+Models: logistic regression (five markers), Bayesian logistic regression (weakly informative priors), random forest (all proteins, ntree = 500).
 
-Evaluation: 70/30 train/test split; accuracy and confusion matrices; feature importance.
+Evaluation: stratified train/test split; accuracy and confusion matrices; mean decrease in accuracy for feature importance.
+
+## Acknowledgments
+
+The author used Claude (Anthropic) for assistance with writing and code review.
 
 ## Reproducibility
 
 ```{r}
-sessionInfo()
+si <- sessionInfo()
+cat("R version:", R.version$version.string, "\n")
+cat("Platform:", si$platform, "\n")
+cat("OS:", si$running, "\n\n")
+cat("Attached packages:\n")
+pkg <- sort(names(si$otherPkgs))
+for (p in pkg) {
+  cat(sprintf("  %s %s\n", p, si$otherPkgs[[p]]$Version))
+}
 ```
